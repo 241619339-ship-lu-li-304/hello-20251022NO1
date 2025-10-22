@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel数据查询系统</title>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        
+        .description {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .file-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-path {
+            font-family: monospace;
+            background-color: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 3px;
+            flex-grow: 1;
+        }
+        
+        .file-button {
+            padding: 8px 15px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .file-button:hover {
+            background-color: #5a6268;
+        }
+        
+        .search-section {
+            display: flex;
+            margin-bottom: 30px;
+            gap: 10px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        
+        .search-button {
+            padding: 12px 25px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .search-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .refresh-button {
+            padding: 12px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        
+        .refresh-button:hover {
+            background-color: #218838;
+        }
+        
+        .results-section {
+            margin-top: 20px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            display: none;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            display: none;
+            font-size: 14px;
+        }
+        
+        .results-table th {
+            background-color: #3498db;
+            color: white;
+            text-align: left;
+            padding: 12px 15px;
+            position: sticky;
+            top: 0;
+        }
+        
+        .results-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .results-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .highlight {
+            background-color: #fffacd;
+            font-weight: bold;
+        }
+        
+        .status-processing {
+            color: #e67e22;
+            font-weight: bold;
+        }
+        
+        .status-completed {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .status-returned {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        @media (max-width: 768px) {
+            .search-section {
+                flex-direction: column;
+            }
+            
+            .container {
+                padding: 15px;
+            }
+            
+            .results-table {
+                font-size: 12px;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Excel数据查询系统</h1>
+            <p class="description">查询本地Excel文件中的项目流程数据</p>
+            <div class="file-section">
+                <span>文件路径：</span>
+                <div class="file-path" id="filePath">C:\Users\admin\OneDrive\桌面\流程_数据.xlsx</div>
+                <button class="file-button" id="selectFileBtn">选择文件</button>
+            </div>
+        </header>
+        
+        <div class="search-section">
+            <input type="text" class="search-input" placeholder="请输入项目名称" id="searchInput">
+            <button class="search-button" id="searchButton">查询</button>
+            <button class="refresh-button" id="refreshButton">刷新数据</button>
+        </div>
+        
+        <div class="results-section">
+            <div class="no-results" id="noResults">
+                <p>未找到匹配的项目信息</p>
+            </div>
+            
+            <table class="results-table" id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>单据号</th>
+                        <th>项目名称</th>
+                        <th>流程状态</th>
+                        <th>执行状态</th>
+                        <th>交易类型</th>
+                        <th>系统来源</th>
+                        <th>发起时间</th>
+                        <th>当前处理人</th>
+                        <th>当前环节</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody">
+                    <!-- 查询结果将在这里显示 -->
+                </tbody>
+            </table>
+        </div>
+        
+        <footer>
+            <p>Excel数据查询系统 &copy; 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const searchInput = document.getElementById('searchInput');
+        const searchButton = document.getElementById('searchButton');
+        const refreshButton = document.getElementById('refreshButton');
+        const selectFileBtn = document.getElementById('selectFileBtn');
+        const filePath = document.getElementById('filePath');
+        const noResults = document.getElementById('noResults');
+        const resultsTable = document.getElementById('resultsTable');
+        const resultsBody = document.getElementById('resultsBody');
+        
+        let excelData = [];
+        let currentFile = null;
+
+        // 文件选择处理
+        selectFileBtn.addEventListener('click', function() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.xlsx, .xls';
+            
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    currentFile = e.target.files[0];
+                    filePath.textContent = currentFile.name;
+                    loadExcelData(currentFile);
+                }
+            });
+            
+            fileInput.click();
+        });
+
+        // 加载Excel数据
+        function loadExcelData(file) {
+            if (!file) {
+                alert('请先选择Excel文件');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // 获取第一个工作表
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // 将工作表转换为JSON
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    
+                    // 处理数据（假设第一行是标题）
+                    if (jsonData.length > 1) {
+                        const headers = jsonData[0];
+                        excelData = [];
+                        
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (row.length > 0) {
+                                const item = {};
+                                for (let j = 0; j < headers.length; j++) {
+                                    item[headers[j]] = row[j] || '';
+                                }
+                                excelData.push(item);
+                            }
+                        }
+                        
+                        console.log('成功加载数据:', excelData.length, '条记录');
+                        alert(`成功加载 ${excelData.length} 条数据记录`);
+                    } else {
+                        alert('Excel文件中没有数据');
+                    }
+                } catch (error) {
+                    console.error('解析Excel文件时出错:', error);
+                    alert('解析Excel文件时出错，请确保文件格式正确');
+                }
+            };
+            
+            reader.onerror = function() {
+                alert('读取文件时出错');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 搜索功能
+        function searchProjects() {
+            const searchTerm = searchInput.value.trim().toLowerCase();
+            
+            if (searchTerm === '') {
+                alert('请输入项目名称');
+                return;
+            }
+            
+            if (excelData.length === 0) {
+                alert('请先加载Excel数据');
+                return;
+            }
+            
+            // 清空之前的结果
+            resultsBody.innerHTML = '';
+            
+            // 过滤匹配的项目
+            const matchedProjects = excelData.filter(item => {
+                const projectName = item['单据主组织'] || '';
+                return projectName.toLowerCase().includes(searchTerm);
+            });
+            
+            // 显示结果
+            if (matchedProjects.length > 0) {
+                matchedProjects.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    // 高亮匹配的关键词
+                    const projectName = item['单据主组织'] || '';
+                    const highlightedName = highlightText(projectName, searchTerm);
+                    
+                    // 根据状态设置样式类
+                    let statusClass = '';
+                    const status = item['流程状态'] || '';
+                    if (status.includes('进行中')) statusClass = 'status-processing';
+                    else if (status.includes('已完成')) statusClass = 'status-completed';
+                    else if (status.includes('退回')) statusClass = 'status-returned';
+                    
+                    row.innerHTML = `
+                        <td>${item['单据号'] || ''}</td>
+                        <td>${highlightedName}</td>
+                        <td class="${statusClass}">${status}</td>
+                        <td>${item['执行状态'] || ''}</td>
+                        <td>${item['交易类型'] || ''}</td>
+                        <td>${item['系统来源'] || ''}</td>
+                        <td>${item['发起时间'] || ''}</td>
+                        <td>${item['当前处理人'] || ''}</td>
+                        <td>${item['当前环节'] || ''}</td>
+                    `;
+                    
+                    resultsBody.appendChild(row);
+                });
+                
+                resultsTable.style.display = 'table';
+                noResults.style.display = 'none';
+            } else {
+                resultsTable.style.display = 'none';
+                noResults.style.display = 'block';
+            }
+        }
+
+        // 高亮文本函数
+        function highlightText(text, searchTerm) {
+            if (!searchTerm || !text) return text;
+            
+            const regex = new RegExp(`(${searchTerm})`, 'gi');
+            return text.replace(regex, '<span class="highlight">$1</span>');
+        }
+
+        // 刷新数据
+        refreshButton.addEventListener('click', function() {
+            if (currentFile) {
+                loadExcelData(currentFile);
+            } else {
+                alert('请先选择Excel文件');
+            }
+        });
+
+        // 事件监听
+        searchButton.addEventListener('click', searchProjects);
+        
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchProjects();
+            }
+        });
+
+        // 页面加载时显示使用说明
+        window.addEventListener('load', function() {
+            alert('请点击"选择文件"按钮加载Excel数据文件，然后输入项目名称进行查询。');
+        });
+    </script>
+</body>
+</html>
